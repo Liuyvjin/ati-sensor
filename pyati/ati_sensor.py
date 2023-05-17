@@ -5,6 +5,7 @@ from time import sleep
 import numpy as np
 
 from pyati.general_utils import Filter, Logger
+np.set_printoptions(formatter={'float': lambda x: "{0:0.5f},".format(x)})
 
 class RDTCommand():
     HEADER = 0x1234
@@ -26,7 +27,9 @@ class ATISensor:
     scale = 1 / np.array([counts_per_force, counts_per_force, counts_per_force,
                       counts_per_torque, counts_per_torque, counts_per_torque])
 
-    def __init__(self, ip="192.168.1.1", filter_on=False):
+    def __init__(self, ip="192.168.1.1",
+                 filter_on=False,
+                 log_file=None):
         self.ip = ip
         self.port = 49152
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -45,6 +48,9 @@ class ATISensor:
             self._data = Filter(np.array(self.mean), 0.3)
         else:
             self._data = Filter(np.array(self.mean), 1)
+
+        self.log_file = log_file if log_file is not None else './data.csv'
+        self._log_init = False
 
         self.connect()
 
@@ -154,13 +160,20 @@ class ATISensor:
             self._data.data = tmp_data
             self._mutex.release()
 
+    def log_data(self):
+        if not self._log_init:
+            self.logger.add_logfile(self.log_file)
+            self.logger.log("Force Units: N, Torque Units: Nmm, Counts per Unit Force: 1000000.0, Counts per Unit Torque: 1000", log_time=False)
+            self.logger.log("Time, Fx, Fy, Fz, Tx, Ty, Tz", log_time=False)
+            self._log_init = True
 
+        tmp_data = str(self.data)
+        self.logger.log(tmp_data[1:-2], echo=True)
 
 if __name__ == '__main__':
-    np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
 
     ati = ATISensor("192.168.1.1")
     ati.tare()
     while True:
-        print(ati.data)
+        ati.log_data()
         sleep(0.1)
