@@ -2,66 +2,9 @@ import socket
 import struct
 from threading import Thread, Lock, Event
 from time import sleep
-from datetime import datetime
 import numpy as np
 
-
-class Logger():
-    name = "logger"
-
-    grey = "\x1b[38;20m"
-    green="\x1b[32m"
-    yellow = "\x1b[33;20m"
-    red = "\x1b[31;20m"
-    bold_red = "\x1b[31;1m"
-    reset = "\x1b[0m"
-
-    Levels = ["DEBUG", "INFO", "WARNING", "ERROR", "FATAL"]
-    level = 1
-
-    ColorMap = {
-        "DEBUG" : grey,
-        "INFO": green,
-        "WARNING": yellow,
-        "ERROR": red ,
-        "FATAL": bold_red
-    }
-
-    def __init__(self, log_level='DEBUG', name:str=None):
-        if name is not None:
-            self.name = name
-        self.level = self.Levels.index(log_level)
-
-    def color_print(self, levelname, *msg):
-        now = datetime.now().strftime('%H:%M:%S')
-        prefix = self.ColorMap.get(levelname) + f"[{levelname:>5}] " +\
-            self.reset + now + f" [{self.name}]:"
-        print(prefix, *msg)
-
-    def debug(self, *msg):
-        if self.level < 1:
-            self.color_print("DEBUG", *msg)
-
-    def info(self, *msg):
-        if self.level < 2:
-            self.color_print("INFO", *msg)
-
-    def warning(self, *msg):
-        if self.level < 3:
-            self.color_print("WARNING", *msg)
-
-    def error(self, *msg):
-        if self.level < 4:
-            self.color_print("ERROR", *msg)
-
-    def fatal(self, *msg):
-        if self.level < 5:
-            self.color_print("FATAL", *msg)
-
-    def setLevel(self, log_level):
-        assert log_level in self.Levels
-        self.level = self.Levels.index(log_level)
-
+from pyati.general_utils import Filter, Logger
 
 class RDTCommand():
     HEADER = 0x1234
@@ -79,19 +22,30 @@ class RDTCommand():
 class ATISensor:
     '''The class interface for an ATI Force/Torque sensor.'''
     counts_per_force = 1000000
-    scale = 1.0 / counts_per_force
+    counts_per_torque = 1000
+    scale = 1 / np.array([counts_per_force, counts_per_force, counts_per_force,
+                      counts_per_torque, counts_per_torque, counts_per_torque])
 
-    def __init__(self, ip="192.168.1.1"):
+    def __init__(self, ip="192.168.1.1", filter_on=False):
         self.ip = ip
         self.port = 49152
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
         self.streaming = False
+        self.filter_on = filter_on
+
         self._mutex = Lock()
         self._connected = Event()
-        self.count = 0
+
         self.logger = Logger(log_level="DEBUG", name="ATI")
+
         self.mean = np.zeros((6,), np.float64)
-        self._data = self.mean
+
+        if filter_on:
+            self._data = Filter(np.array(self.mean), 0.3)
+        else:
+            self._data = Filter(np.array(self.mean), 1)
+
         self.connect()
 
     @property
@@ -103,11 +57,15 @@ class ATISensor:
         """current data"""
         if self.streaming:
             self._mutex.acquire()
-            tmp_data = self._data
+            tmp_data = self._data.data
             self._mutex.release()
         else:
-            tmp_data = self.get_n_samples(1)[0]
-        return tmp_data - self.mean
+            self._data.update(self.get_n_samples(1)[0])
+            tmp_data = self._data.data
+
+        curr_data = tmp_data - self.mean
+
+        return curr_data
 
     def connect(self):
         retry = 0
@@ -140,8 +98,7 @@ class ATISensor:
     def recv_data(self):
         if self._connected.wait(1):
             rawdata = self.sock.recv(1024)
-            raw_data = struct.unpack('!3I6i', rawdata)[3:]
-            self.count += 1
+            raw_data = np.array(struct.unpack('!3I6i', rawdata)[3:])
             return np.array(raw_data) * self.scale
         else:
             raise
@@ -155,12 +112,20 @@ class ATISensor:
             samples[i] = self.recv_data()
         return samples
 
+    def get_n_samples_mean(self, n=1):
+        """读取 n 个 sample, 并取平均"""
+        n = max(1, int(n))
+        samples = np.empty((n, 6))
+        self.send_cmd(RDTCommand.CMD_START_STREAMING, n)
+        for i in range(n):
+            samples[i] = self.recv_data()
+        return samples.mean(axis=0, keepdims=False)
+
     def tare(self, n=10):
         """传感器去皮
             n (int, optional): 取平均的样本数
         """
-        samples = self.get_n_samples(n)
-        self.mean = samples.mean(axis=0, keepdims=False)
+        self.mean = self.get_n_samples_mean(n)
 
     def zero(self):
         '''Remove the mean found with `tare` to start receiving raw sensor values.'''
@@ -186,8 +151,9 @@ class ATISensor:
         while self.streaming:
             tmp_data = self.recv_data()
             self._mutex.acquire()
-            self._data = tmp_data
+            self._data.data = tmp_data
             self._mutex.release()
+
 
 
 if __name__ == '__main__':

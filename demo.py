@@ -140,7 +140,7 @@ class QTextShow(QtWidgets.QWidget):
 class GLForceWidget(QtWidgets.QWidget):
     def __init__(self, parent):
         super().__init__(parent)
-        self.ati = ATISensor(ip="192.168.1.1")
+        self.ati = ATISensor(ip="192.168.1.1", filter_on=True)
         self.setup_ui()
 
         self.bias_button.clicked.connect(self.onBias)
@@ -167,8 +167,8 @@ class GLForceWidget(QtWidgets.QWidget):
         self.vbox.setSpacing(15)
 
         self.fx_view = QTextShow(self.leftFrame, "Fx", "0")
-        self.fy_view = QTextShow(self.leftFrame, "Fx", "0")
-        self.fz_view = QTextShow(self.leftFrame, "Fx", "0")
+        self.fy_view = QTextShow(self.leftFrame, "Fy", "0")
+        self.fz_view = QTextShow(self.leftFrame, "Fz", "0")
         self.tx_view = QTextShow(self.leftFrame, "Tx", "0")
         self.ty_view = QTextShow(self.leftFrame, "Ty", "0")
         self.tz_view = QTextShow(self.leftFrame, "Tz", "0")
@@ -187,8 +187,7 @@ class GLForceWidget(QtWidgets.QWidget):
         self.setup_3d()
 
     def setup_3d(self):
-        gl.GLViewWidget
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.rightFrame.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         # 坐标轴
         self.axis = GLAxisItem(size=(10, 10, 10))
         self.rightFrame.addItem(self.axis)
