@@ -140,7 +140,7 @@ class QTextShow(QtWidgets.QWidget):
 class GLForceWidget(QtWidgets.QWidget):
     def __init__(self, parent):
         super().__init__(parent)
-        self.ati = ATISensor(ip="192.168.1.1", filter_on=True)
+        self.ati = ATISensor(ip="192.168.1.10", filter_on=True)
         self.setup_ui()
 
         self.bias_button.clicked.connect(self.onBias)

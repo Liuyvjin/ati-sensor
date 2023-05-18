@@ -27,7 +27,7 @@ class ATISensor:
     scale = 1 / np.array([counts_per_force, counts_per_force, counts_per_force,
                       counts_per_torque, counts_per_torque, counts_per_torque])
 
-    def __init__(self, ip="192.168.1.1",
+    def __init__(self, ip="192.168.1.10",
                  filter_on=False,
                  log_file=None):
         self.ip = ip
@@ -160,15 +160,16 @@ class ATISensor:
             self._data.data = tmp_data
             self._mutex.release()
 
-    def log_data(self):
+    def log_data(self, *msg):
         if not self._log_init:
             self.logger.add_logfile(self.log_file)
             self.logger.log("Force Units: N, Torque Units: Nmm, Counts per Unit Force: 1000000.0, Counts per Unit Torque: 1000", log_time=False)
             self.logger.log("Time, Fx, Fy, Fz, Tx, Ty, Tz", log_time=False)
             self._log_init = True
 
-        tmp_data = str(self.data)
-        self.logger.log(tmp_data[1:-2], echo=True)
+        tmp_data = self.data
+        self.logger.log(str(tmp_data)[1:-2], *msg, echo=True)
+        return tmp_data
 
 if __name__ == '__main__':
 
