@@ -12,6 +12,7 @@ class RDTCommand():
     # Possible values for command
     CMD_STOP_STREAMING = 0
     CMD_START_STREAMING = 2
+    CMD_SET_SOFTWARE_BIAS = 0x0042
     # Special values for sample count
     INFINITE_SAMPLES = 0
 
@@ -170,6 +171,11 @@ class ATISensor:
         tmp_data = self.data
         self.logger.log(str(tmp_data)[1:-2], *msg, echo=True)
         return tmp_data
+
+    def set_bias(self):
+        """Set software bias"""
+        self.send_cmd(RDTCommand.CMD_SET_SOFTWARE_BIAS, 0)
+
 
 if __name__ == '__main__':
 

@@ -210,7 +210,7 @@ class GLForceWidget(QtWidgets.QWidget):
         self.tz_view.value = "{:>9.3f}".format(data[5])
 
     def onBias(self):
-        self.ati.tare()
+        self.ati.set_bias()
 
 
 import sys
