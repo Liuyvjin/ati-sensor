@@ -66,7 +66,8 @@ class Logger():
 
     def log(self, *msg, echo=False, log_time=True):
         if log_time:
-            text = datetime.now().strftime('%y/%m/%d %H:%M:%S, ')
+            now = datetime.now()
+            text = now.strftime("%y/%m/%d %H:%M:%S, ") + f"{now.timestamp():.3f}, "
         else:
             text = ""
 

@@ -161,15 +161,15 @@ class ATISensor:
             self._data.data = tmp_data
             self._mutex.release()
 
-    def log_data(self, *msg):
+    def log_data(self, *msg, echo=True):
         if not self._log_init:
             self.logger.add_logfile(self.log_file)
             self.logger.log("Force Units: N, Torque Units: Nmm, Counts per Unit Force: 1000000.0, Counts per Unit Torque: 1000", log_time=False)
-            self.logger.log("Time, Fx, Fy, Fz, Tx, Ty, Tz", log_time=False)
+            self.logger.log("Time, TimeStamp, Fx, Fy, Fz, Tx, Ty, Tz", log_time=False)
             self._log_init = True
 
         tmp_data = self.data
-        self.logger.log(str(tmp_data)[1:-2], *msg, echo=True)
+        self.logger.log(str(tmp_data)[1:-2], *msg, echo=echo, log_time=True)
         return tmp_data
 
     def set_bias(self):
